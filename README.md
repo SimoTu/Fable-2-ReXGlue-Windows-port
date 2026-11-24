@@ -1,4 +1,4 @@
-# Fable Windows recompilation
+# Fable 2 Windows recompilation
 
 Users must bring their own copy of the Xbox 360 game. The disc image, XEX, game data and generated recompiled C++ are excluded from the source repository and releases.
 
