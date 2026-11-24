@@ -1,0 +1,9 @@
+/out/
+/generated/*
+!/generated/rexglue.cmake
+/CMakeUserPresets.json
+*.iso
+*.xex
+*.pk4
+*.log
+/pablo_manifest.toml

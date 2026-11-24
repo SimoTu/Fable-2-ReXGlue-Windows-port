@@ -1,0 +1,151 @@
+# The guest script VM uses these CRT entry points for protected calls.
+setjmp_address = 0x83000200
+longjmp_address = 0x82CA9260
+
+# First unregistered entry reached by GameThread in the no-input boot.
+[functions."0x82CD8650"]
+
+# Unregistered entry observed in pablo-boot-01.log.
+[functions."0x82CDBAE0"]
+
+# Observed in pablo-boot-03.log.
+[functions."0x82CE5D50"]
+
+# Observed in pablo-boot-04.log.
+[functions."0x82C1DC80"]
+
+# Observed in pablo-boot-05.log.
+[functions."0x82C1DC50"]
+
+# Observed in pablo-boot-06.log.
+[functions."0x82C1DC98"]
+
+# Direct branch destinations reported in the strict validation baseline.
+# The no-input launch reached the branch to 0x82C00108 in boot 07.
+[functions."0x82C00108"]
+[functions."0x82C000F8"]
+[functions."0x82C00118"]
+[functions."0x82C14D58"]
+[functions."0x82CD7948"]
+[functions."0x82F279D8"]
+[functions."0x82E7E4F8"]
+
+# Strict validation: pablo-codegen-startup-08.log.
+[functions."0x82C00110"]
+
+# Strict validation: pablo-codegen-startup-08.log.
+[functions."0x82C00120"]
+
+# Strict validation: pablo-codegen-startup-08.log.
+[functions."0x82C0B680"]
+
+# Strict validation: pablo-codegen-startup-09.log.
+[functions."0x82C00128"]
+
+# Strict validation: pablo-codegen-startup-09.log.
+[functions."0x82C0B688"]
+
+# Observed in pablo-boot-strict.log.
+[functions."0x82C1DC60"]
+
+# Observed in pablo-boot-14.log.
+[functions."0x82C8D820"]
+
+# Observed in pablo-boot-15.log.
+[functions."0x82C867E8"]
+
+# Observed in pablo-boot-jump.log.
+[functions."0x829FCB00"]
+
+# Observed in pablo-boot-jump-1.log.
+[functions."0x82C0B400"]
+
+# Observed in pablo-boot-jump-2.log.
+[functions."0x82C09188"]
+
+# Observed in pablo-boot-jump-3.log.
+[functions."0x82C4C320"]
+
+# Observed in pablo-boot-jump-4.log.
+[functions."0x82C4C5C8"]
+
+# Observed in pablo-boot-jump-5.log.
+[functions."0x82C4C300"]
+
+# Observed in pablo-boot-jump-6.log.
+[functions."0x82C4C2C8"]
+
+# Observed during the milestone 2 title-screen input test.
+[functions."0x82C4C5A8"]
+
+# Reached after Cross on a physical DualSense in the title-screen test.
+[functions."0x82C4C2E8"]
+
+# Reached after storage selection in the milestone 2 regression launch.
+[functions."0x822142D0"]
+
+# Reached in the next post-title regression launch.
+[functions."0x82267C88"]
+
+# Reached in the controller-only regression after the title screen.
+[functions."0x82E8F9E8"]
+
+# Reached in controller-only regression pablo-controller-interactive-19059-15392.log.
+[functions."0x82267568"]
+
+# Reached in controller-only regression pablo-controller-interactive-19474-4184.log.
+[functions."0x825EF568"]
+
+# Reached in controller-only regression pablo-controller-interactive-19836-17609.log.
+[functions."0x82996258"]
+
+# Reached during the automated New Game smoke test.
+[functions."0x8274B798"]
+
+# Reached in pablo-new-game-repro-02.log.
+[functions."0x82C4C5E8"]
+
+# Reached in pablo-new-game-repro-03.log.
+[functions."0x82988ED8"]
+
+# Reached after character confirmation in pablo-smoke-01.log.
+[functions."0x82988F28"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x8274B748"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x82EAA980"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x82EC1918"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x82E87A10"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x82B84350"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x82B56870"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x824D56C8"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x8274B758"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x8274B778"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x822D6678"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x82988EC8"]
+
+# Reached in the previous automated gameplay run.
+[functions."0x82988F48"]
+
+# Reached in physical DualSense run pablo-controller-interactive-16507-27562.log.
+[functions."0x82988F38"]

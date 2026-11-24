@@ -1,0 +1,172 @@
+diff --git a/src/graphics/command_processor.cpp b/src/graphics/command_processor.cpp
+index a744375..217a3d0 100644
+--- a/src/graphics/command_processor.cpp
++++ b/src/graphics/command_processor.cpp
+@@ -12,7 +12,9 @@
+ #include <algorithm>
+ #include <cinttypes>
+ #include <cmath>
++#include <cstdlib>
+ #include <cstring>
++#include <fstream>
+ #include <string_view>
+ 
+ #include <fmt/format.h>
+@@ -930,6 +932,23 @@ bool CommandProcessor::ExecutePacketType3_XE_SWAP(memory::RingBuffer* reader, ui
+                                                   uint32_t count) {
+   SCOPE_profile_cpu_f("gpu");
+ 
++  // Capture guest swap cadence independently of the optional performance overlay.
++  static auto frame_trace = [] {
++    const char* path = std::getenv("REXGLUE_GUEST_FRAME_TRACE");
++    return path ? std::ofstream(path, std::ios::out | std::ios::noreplace) : std::ofstream();
++  }();
++  if (frame_trace.is_open()) {
++    const auto now = rex::chrono::Clock::QueryHostTickCount();
++    static const auto first = now;
++    static auto previous = now;
++    const auto frequency = rex::chrono::Clock::QueryHostTickFrequency();
++    if (now > previous) {
++      frame_trace << (now - first) * 1000000 / frequency << ','
++                  << (now - previous) * 1000000 / frequency << '\n';
++    }
++    previous = now;
++  }
++
+ #ifdef REXGLUE_ENABLE_PERF_COUNTERS
+   {
+     static uint64_t last_frame_tick = 0;
+diff --git a/src/system/runtime.cpp b/src/system/runtime.cpp
+index c10694c..1b97c82 100644
+--- a/src/system/runtime.cpp
++++ b/src/system/runtime.cpp
+@@ -11,6 +11,7 @@
+ 
+ #include <rex/chrono/clock.h>
+ #include <rex/cvar.h>
++#include <rex/filesystem/devices/disc_image_device.h>
+ #include <rex/filesystem/devices/host_path_device.h>
+ #include <rex/filesystem/devices/null_device.h>
+ #include <rex/filesystem/vfs.h>
+@@ -305,14 +306,15 @@ bool Runtime::SetupVfs() {
+ 
+   // Mount game_data_root as \Device\Harddisk0\Partition1
+   auto mount_path = "\\Device\\Harddisk0\\Partition1";
+-  auto device = std::make_unique<rex::filesystem::HostPathDevice>(
+-      mount_path, abs_game_root, !REXCVAR_GET(allow_game_relative_writes));
+-  if (!device->Initialize()) {
+-    REXSYS_ERROR("Runtime::SetupVfs: Failed to initialize host path device");
+-    return false;
++  std::unique_ptr<rex::filesystem::Device> device;
++  if (std::filesystem::is_regular_file(abs_game_root)) {
++    device = std::make_unique<rex::filesystem::DiscImageDevice>(mount_path, abs_game_root);
++  } else {
++    device = std::make_unique<rex::filesystem::HostPathDevice>(
++        mount_path, abs_game_root, !REXCVAR_GET(allow_game_relative_writes));
+   }
+-  if (!file_system_->RegisterDevice(std::move(device))) {
+-    REXSYS_ERROR("Runtime::SetupVfs: Failed to register host path device");
++  if (!device->Initialize() || !file_system_->RegisterDevice(std::move(device))) {
++    REXSYS_ERROR("Runtime::SetupVfs: Failed to mount game data: {}", abs_game_root.string());
+     return false;
+   }
+   REXSYS_DEBUG("  Mounted {} at {}", abs_game_root.string(), mount_path);
+diff --git a/src/ui/d3d12/d3d12_presenter.cpp b/src/ui/d3d12/d3d12_presenter.cpp
+index 306118e..169fe7e 100644
+--- a/src/ui/d3d12/d3d12_presenter.cpp
++++ b/src/ui/d3d12/d3d12_presenter.cpp
+@@ -12,6 +12,8 @@
+ #include <algorithm>
+ #include <climits>
+ #include <cmath>
++#include <cstdlib>
++#include <fstream>
+ #include <memory>
+ #include <utility>
+ 
+@@ -1158,6 +1160,18 @@ Presenter::PaintResult D3D12Presenter::PaintAndPresentImpl(bool execute_ui_drawe
+   HRESULT present_result = paint_context_.swap_chain->Present(
+       0, DXGI_PRESENT_RESTART |
+              (paint_context_.swap_chain_allows_tearing ? DXGI_PRESENT_ALLOW_TEARING : 0));
++  // Read the latest completed presentation without waiting on the compositor.
++  static auto display_trace = [] {
++    const char* path = std::getenv("REXGLUE_DXGI_FRAME_TRACE");
++    return path ? std::ofstream(path, std::ios::out | std::ios::noreplace) : std::ofstream();
++  }();
++  if (display_trace.is_open() && SUCCEEDED(present_result)) {
++    DXGI_FRAME_STATISTICS stats{};
++    if (SUCCEEDED(paint_context_.swap_chain->GetFrameStatistics(&stats))) {
++      display_trace << stats.PresentCount << ',' << stats.PresentRefreshCount << ','
++                    << stats.SyncRefreshCount << ',' << stats.SyncQPCTime.QuadPart << '\n';
++    }
++  }
+   // Even if presentation has failed, work might have been enqueued anyway
+   // internally before the failure according to Jesse Natalie from the DirectX
+   // Discord server.
+diff --git a/src/ui/rex_app.cpp b/src/ui/rex_app.cpp
+index b94fe9e..c23ac12 100644
+--- a/src/ui/rex_app.cpp
++++ b/src/ui/rex_app.cpp
+@@ -18,6 +18,7 @@
+ #include <rex/ui/flags.h>
+ #include <rex/kernel/crt/heap.h>
+ #include <rex/filesystem.h>
++#include <rex/filesystem/vfs.h>
+ #include <rex/logging/sink.h>
+ #include <rex/logging.h>
+ #include <rex/ui/overlay/achievement_toast.h>
+@@ -207,7 +208,8 @@ bool ReXApp::ConstructRuntime(const PathConfig& paths) {
+     rex::ShowSimpleMessageBox(rex::SimpleMessageBoxType::Error, msg);
+     return false;
+   }
+-  if (!std::filesystem::is_directory(paths.game_data_root)) {
++  if (!std::filesystem::is_directory(paths.game_data_root) &&
++      !std::filesystem::is_regular_file(paths.game_data_root)) {
+     auto msg = fmt::format("--game_data_root does not exist: {}", paths.game_data_root.string());
+     REXLOG_ERROR("{}", msg);
+     rex::ShowSimpleMessageBox(rex::SimpleMessageBoxType::Error, msg);
+@@ -262,25 +264,12 @@ bool ReXApp::ConstructRuntime(const PathConfig& paths) {
+   std::string xex_image = "game:\\default.xex";
+   OnLoadXexImage(xex_image);
+ 
+-  // Mirrors the game:\ / d:\ -> game_data_root mapping in Runtime::SetupVfs.
+-  {
+-    constexpr std::string_view kGameDevice = "game:\\";
+-    constexpr std::string_view kDDevice = "d:\\";
+-    std::string_view tail = xex_image;
+-    if (tail.starts_with(kGameDevice)) {
+-      tail.remove_prefix(kGameDevice.size());
+-    } else if (tail.starts_with(kDDevice)) {
+-      tail.remove_prefix(kDDevice.size());
+-    }
+-    std::string host_tail{tail};
+-    std::replace(host_tail.begin(), host_tail.end(), '\\', '/');
+-    auto xex_host = paths.game_data_root / host_tail;
+-    if (!std::filesystem::is_regular_file(xex_host)) {
+-      auto msg = fmt::format("Entrypoint XEX not found: {}", xex_host.string());
+-      REXLOG_ERROR("{}", msg);
+-      rex::ShowSimpleMessageBox(rex::SimpleMessageBoxType::Error, msg);
+-      return false;
+-    }
++  const auto* entry = runtime_->file_system()->ResolvePath(xex_image);
++  if (!entry || (entry->attributes() & filesystem::kFileAttributeDirectory)) {
++    auto msg = fmt::format("Entrypoint XEX not found: {}", xex_image);
++    REXLOG_ERROR("{}", msg);
++    rex::ShowSimpleMessageBox(rex::SimpleMessageBoxType::Error, msg);
++    return false;
+   }
+ 
+   status = runtime_->LoadXexImage(xex_image);
+diff --git a/thirdparty/CMakeLists.txt b/thirdparty/CMakeLists.txt
+index f102b56..01484d9 100644
+--- a/thirdparty/CMakeLists.txt
++++ b/thirdparty/CMakeLists.txt
+@@ -126,7 +126,7 @@ target_compile_options(aes128 PRIVATE -w)
+ 
+ # libmspack - LZX decompression (only lzxd.c needed for XEX decompression)
+ # Uses cabextract version which has all needed headers in one place
+-set(MSPACK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libmspack/cabextract/mspack")
++set(MSPACK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libmspack/libmspack/mspack")
+ add_library(mspack STATIC
+     ${MSPACK_DIR}/lzxd.c
+ )
