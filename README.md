@@ -47,7 +47,7 @@ pad instead, set `PABLO_SMOKE_TEST_INPUT` to its command file while recording.
 
 ## Gameplay frame rate
 
-Pablo defaults to a 120 Hz guest video mode. In the opening gameplay replay on
+Fable defaults to a 120 Hz guest video mode. In the opening gameplay replay on
 an AMD Radeon RX 9070, this produced 60 guest swaps per second. It uses the
 existing ReXGlue D3D12 backend and keeps vertical sync enabled. To override
 this setting, pass `--video_mode_refresh_rate=60` to the executable or set
